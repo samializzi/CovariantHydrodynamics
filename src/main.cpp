@@ -38,14 +38,14 @@ void doWork() {
 // A user-defined callback, for creating control panels (etc)
 // Use ImGUI commands to build whatever you want here, see
 // https://github.com/ocornut/imgui/blob/master/imgui.h
-void myCallback() {
-
-  if (ImGui::Button("do work")) {
-    doWork();
-  }
-
-  ImGui::SliderFloat("param", &param1, 0., 100.);
-}
+//void myCallback() {
+//
+//  if (ImGui::Button("do work")) {
+//    doWork();
+//  }
+//
+//  ImGui::SliderFloat("param", &param1, 0., 100.);
+//}
 
 int main(int argc, char **argv) {
 
@@ -75,7 +75,7 @@ int main(int argc, char **argv) {
   polyscope::init();
 
   // Set the callback function
-  polyscope::state::userCallback = myCallback;
+  //polyscope::state::userCallback = myCallback;
 
   // Load mesh
   std::tie(mesh, geometry) = readManifoldSurfaceMesh(args::get(inputFilename));
@@ -85,6 +85,13 @@ int main(int argc, char **argv) {
       polyscope::guessNiceNameFromPath(args::get(inputFilename)),
       geometry->inputVertexPositions, mesh->getFaceVertexList(),
       polyscopePermutations(*mesh));
+
+  // number of verticies, edges and faces
+  int nVerts = mesh->nVertices();
+  int nEdges = mesh->nEdges();
+  int nFaces = mesh->nFaces();
+
+  std::cout << nEdges << "\n";
 
   // Set vertex tangent spaces
   geometry->requireVertexTangentBasis();
@@ -97,7 +104,51 @@ int main(int argc, char **argv) {
 
   auto vField =
       geometrycentral::surface::computeSmoothestVertexDirectionField(*geometry);
+
+  geometry->requireVertexGaussianCurvatures();
+  psMesh->addVertexScalarQuantity("Gaussian curvature",
+                                  geometry->vertexGaussianCurvatures,
+                                  polyscope::DataType::SYMMETRIC);
+
+  // This step implements Discrete Exterior Calculus Operations
+  geometry->requireDECOperators();
+  VertexData<double> gaussianCurve(*mesh);
+
+  // 1-form of velocity
+  Eigen::VectorXd u(nEdges);
+  std::vector<char>  orient(nEdges);
+
+  for (int e=0; e<nEdges; e++) {
+    u[e]=0.0;
+    orient[e]=true;
+  }
+
+  u[0]=1.0;
+  
+  // Computes the linear operator discretizing the exterior derivative of a 0-form, 1-form and Hodge duals
+  auto d0 = geometry->d0;
+  auto d1 = geometry->d1;
+  auto s0 = geometry->hodge0;
+  auto s0m1 = geometry->hodge0Inverse;
+  auto s1 = geometry->hodge1;
+  auto s1m1 = geometry->hodge1Inverse;
+  auto s2 = geometry->hodge2;
+  auto s2m1 = geometry->hodge2Inverse;
+
+  auto divergence = s0m1*(d0.transpose())*s1;
+
+  Eigen::VectorXd divu(nEdges);
+  divu=divergence*u;
+
+  std::cout << divu << "\n";
+
+  gaussianCurve = geometry->vertexGaussianCurvatures;
+
+
+
+
   psMesh->addVertexTangentVectorQuantity("VF", vField, vBasisX, vBasisY);
+  psMesh->addOneFormTangentVectorQuantity("1-form", u, orient);
 
   // Give control to the polyscope gui
   polyscope::show();
