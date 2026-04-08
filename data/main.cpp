@@ -107,7 +107,7 @@ int main(int argc, char **argv) {
       polyscopePermutations(*mesh));
 
 
-  // number of vertices, edges and faces
+  // number of verticies, edges and faces
   int nVerts = mesh->nVertices();
   int nEdges = mesh->nEdges();
   int nFaces = mesh->nFaces();
@@ -288,7 +288,6 @@ int main(int argc, char **argv) {
   Eigen::MatrixXd l1 = Eigen::MatrixXd::Zero(nEdges, nEdges);
   Eigen::MatrixXd idE = Eigen::MatrixXd::Identity(nEdges, nEdges);
   Eigen::MatrixXd grad0 = Eigen::MatrixXd(d0);
-  Eigen::MatrixXd vort = Eigen::MatrixXd::Zero(nEdges, nEdges);
 
   Eigen::VectorXd u(nEdges);
   Eigen::VectorXd force(nEdges);
@@ -296,7 +295,6 @@ int main(int argc, char **argv) {
   std::vector<char>  orient(nEdges);
   Eigen::VectorXd x(nEdges+nVerts);
   Eigen::VectorXd b(nEdges+nVerts);
-  Eigen::VectorXd vorticity(nEdges);
 
   double relative_error = 42;
 
@@ -305,7 +303,6 @@ int main(int argc, char **argv) {
 
     div1 = Eigen::MatrixXd(s0m1*(d0.transpose())*s1);
     l1 = (Eigen::MatrixXd(s1m1)*(Eigen::MatrixXd(d1.transpose()))*(Eigen::MatrixXd(s2))*(Eigen::MatrixXd(d1)));
-    vort = Eigen::MatrixXd(s2)*Eigen::MatrixXd(d1);
 
     for(int i = 0; i < nVerts; i++) {
       for(int j = 0; j < nEdges; j++) {
@@ -326,7 +323,7 @@ int main(int argc, char **argv) {
     double gamma = 0.0;
     printf("\nGive a value for eta (viscosity): ");
     scanf(" %lf", &eta);
-    printf("\nGive a value for gamma (friction): ");
+    printf("\nGive a value for gamma (surface tension): ");
     scanf(" %lf", &gamma);
 
     for (int i = 0; i < nEdges; i++) {
@@ -402,23 +399,10 @@ int main(int argc, char **argv) {
       u(i) = x(i);
     }
 
-    for (int i = 0; i < nVerts; i++) {
+    for(int i = 0; i < nVerts; i++) {
       p(i) = x(i + nEdges);
     }
 
-    //Eigen::VectorXd u_normalised(nEdges);
-    //
-    //for (int i = 0; i < nEdges; i++) {
-    //  if (u(i) > 0) {
-    //    u_normalised(i) = 1;
-    //  } else if (u(i) < 0) {
-    //    u_normalised(i) = -1;
-    //  } else {
-    //    u_normalised(i) = 0;
-    //  }
-    //}
-    vorticity = vort*u;
-    
 
     relative_error = (A*x - b).norm() / b.norm();
     std::cout << "Flow field solved successfully\n";
@@ -477,7 +461,6 @@ int main(int argc, char **argv) {
   psMesh->addVertexScalarQuantity("Gaussian curvature", gaussianCurve, polyscope::DataType::SYMMETRIC);
   psMesh->addOneFormTangentVectorQuantity("force", force, orient);
   psMesh->addOneFormTangentVectorQuantity("velocity", u, orient);
-  psMesh->addFaceScalarQuantity("vorticity", vorticity);
   psMesh->addVertexScalarQuantity("Pressure", p);
   psMesh->addEdgeScalarQuantity("Edge Kg", Kedge);
 
